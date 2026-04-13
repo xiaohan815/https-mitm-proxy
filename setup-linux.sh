@@ -50,7 +50,6 @@ if grep -q "$TARGET_DOMAIN" /etc/hosts 2>/dev/null; then
     echo "✅ hosts 已配置（跳过）"
 else
     echo "127.0.0.1 $TARGET_DOMAIN" >> /etc/hosts
-    echo "::1 $TARGET_DOMAIN" >> /etc/hosts
     echo "✅ hosts 已配置"
 fi
 

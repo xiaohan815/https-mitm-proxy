@@ -61,7 +61,6 @@ if ($hostsContent -match $TARGET_DOMAIN) {
     Write-Host "✅ hosts 已配置（跳过）" -ForegroundColor Green
 } else {
     Add-Content -Path $hostsPath -Value "`n127.0.0.1 $TARGET_DOMAIN"
-    Add-Content -Path $hostsPath -Value "::1 $TARGET_DOMAIN"
     Write-Host "✅ hosts 已配置" -ForegroundColor Green
 }
 
