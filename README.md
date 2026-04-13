@@ -398,6 +398,56 @@ ipconfig /flushdns
 
 ---
 
+### 问题 6: 请求未被拦截（后端没有收到请求）
+
+**症状**: 应用（如 Trae IDE）请求失败，但代理日志中没有任何请求记录
+
+**常见原因**:
+1. 端口转发规则未生效
+2. 应用使用 IPv6 连接，但端口转发只配置了 IPv4
+3. 应用使用自定义 DNS 或绕过系统代理
+
+**诊断步骤**:
+```bash
+# 1. 运行自动诊断脚本
+./test-connection.sh
+
+# 2. 检查端口转发规则（应该包含 IPv4 和 IPv6）
+sudo pfctl -a mitm-proxy -s nat
+
+# 应该看到两条规则：
+# rdr pass on lo0 inet proto tcp from any to any port = 443 -> 127.0.0.1 port 8443
+# rdr pass on lo0 inet6 proto tcp from any to any port = 443 -> ::1 port 8443
+
+# 3. 测试 IPv4 连接
+curl -4 -v https://api.openai.com/v1/models -H "Authorization: Bearer test"
+
+# 4. 测试 IPv6 连接
+curl -6 -v https://api.openai.com/v1/models -H "Authorization: Bearer test"
+
+# 5. 查看代理日志
+# 如果日志中没有请求记录，说明请求没有到达代理
+```
+
+**解决方案**:
+```bash
+# 重新运行配置脚本（已包含 IPv6 支持）
+./setup-macos.sh
+
+# 或手动添加 IPv6 规则
+cat << 'EOF' | sudo tee /etc/pf.anchors/mitm-proxy
+rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port 8443
+rdr pass on lo0 inet6 proto tcp from any to any port 443 -> ::1 port 8443
+EOF
+
+# 重新加载 pfctl
+sudo pfctl -f /etc/pf.conf
+```
+
+**注意**: 如果后端返回 401 错误，这是正常的！说明代理工作正常，只是需要在应用中配置正确的 API Key。
+
+---
+
 ### 问题 6: 端口被占用
 
 **原因**: 其他程序占用了端口

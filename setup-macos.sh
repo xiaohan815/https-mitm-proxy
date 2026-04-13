@@ -66,9 +66,12 @@ fi
 echo ""
 echo "步骤 4/4: 配置端口转发"
 
-# 创建规则文件
+# 创建规则文件（支持 IPv4 和 IPv6）
 sudo mkdir -p /etc/pf.anchors
-echo "rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port $HTTPS_PORT" | sudo tee /etc/pf.anchors/mitm-proxy > /dev/null
+cat << EOF | sudo tee /etc/pf.anchors/mitm-proxy > /dev/null
+rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port $HTTPS_PORT
+rdr pass on lo0 inet6 proto tcp from any to any port 443 -> ::1 port $HTTPS_PORT
+EOF
 
 # 检查 pf.conf
 if grep -q "rdr-anchor \"mitm-proxy\"" /etc/pf.conf 2>/dev/null; then

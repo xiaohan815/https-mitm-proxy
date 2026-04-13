@@ -15,10 +15,17 @@ app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   const targetUrl = `${config.backendUrl}${req.originalUrl}`;
   
-  console.log(`\n[${timestamp}] ${req.method} ${req.originalUrl}`);
+  console.log(`\n${'='.repeat(80)}`);
+  console.log(`[${timestamp}] ${req.method} ${req.originalUrl}`);
   console.log(`  From: ${req.headers.host}`);
   console.log(`  To: ${targetUrl}`);
   console.log(`  User-Agent: ${req.headers['user-agent']?.substring(0, 60)}...`);
+  console.log(`  Content-Type: ${req.headers['content-type'] || 'N/A'}`);
+  console.log(`  Content-Length: ${req.headers['content-length'] || 'N/A'}`);
+  console.log(`  Authorization: ${req.headers['authorization'] ? '✓ Present' : '✗ Missing'}`);
+  
+  // 记录请求开始时间
+  req.startTime = Date.now();
   
   next();
 });
@@ -32,11 +39,8 @@ app.all('*', async (req, res) => {
     let body = undefined;
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       if (req.body) {
-        // 如果已经被 express.json() 解析
         body = JSON.stringify(req.body);
-      } else if (req.rawBody) {
-        // 如果是原始数据
-        body = req.rawBody;
+        console.log(`  Request Body: ${body.substring(0, 200)}${body.length > 200 ? '...' : ''}`);
       }
     }
     
@@ -50,12 +54,16 @@ app.all('*', async (req, res) => {
     delete headers['content-length'];
     delete headers['transfer-encoding'];
     
+    console.log(`  → Forwarding to backend...`);
+    
     // 使用 fetch 转发请求
+    const fetchStart = Date.now();
     const response = await fetch(targetUrl, {
       method: req.method,
       headers: headers,
       body: body,
     });
+    const fetchTime = Date.now() - fetchStart;
     
     // 复制响应头
     response.headers.forEach((value, key) => {
@@ -69,22 +77,45 @@ app.all('*', async (req, res) => {
     const responseBody = await response.text();
     res.send(responseBody);
     
+    // 计算总耗时
+    const totalTime = Date.now() - req.startTime;
+    
     // 日志
-    const statusIcon = response.status >= 200 && response.status < 300 ? '✅' : '❌';
-    console.log(`  ${statusIcon} ${response.status} (${responseBody.length} bytes)`);
+    const statusIcon = response.status >= 200 && response.status < 300 ? '✅' : 
+                       response.status >= 400 && response.status < 500 ? '⚠️' : '❌';
+    
+    console.log(`  ${statusIcon} Response: ${response.status} ${response.statusText || ''}`);
+    console.log(`  Response Size: ${responseBody.length} bytes`);
+    console.log(`  Backend Time: ${fetchTime}ms`);
+    console.log(`  Total Time: ${totalTime}ms`);
     
     // 如果是错误，显示响应内容
     if (response.status >= 400) {
-      console.log(`  响应: ${responseBody.substring(0, 200)}`);
+      console.log(`  Error Response: ${responseBody.substring(0, 500)}`);
     }
-    console.log('');
+    
+    console.log(`${'='.repeat(80)}\n`);
     
   } catch (error) {
-    console.error(`  ❌ 错误: ${error.message}\n`);
+    const totalTime = Date.now() - req.startTime;
+    
+    console.error(`  ❌ Proxy Error: ${error.message}`);
+    console.error(`  Error Type: ${error.name}`);
+    console.error(`  Error Code: ${error.code || 'N/A'}`);
+    console.error(`  Total Time: ${totalTime}ms`);
+    
+    // 详细的错误堆栈
+    if (config.logLevel === 'debug') {
+      console.error(`  Stack Trace:\n${error.stack}`);
+    }
+    
+    console.log(`${'='.repeat(80)}\n`);
+    
     res.status(502).json({
       error: 'Bad Gateway',
       message: error.message,
       backend: config.backendUrl,
+      code: error.code,
     });
   }
 });
@@ -105,6 +136,7 @@ function startServer() {
   console.log(`   目标域名: ${config.targetDomain}`);
   console.log(`   后端地址: ${config.backendUrl}`);
   console.log(`   HTTP 端口: ${config.port}`);
+  console.log(`   日志级别: ${config.logLevel}`);
   
   // HTTP 服务器
   http.createServer(app).listen(config.port, () => {
@@ -126,6 +158,9 @@ function startServer() {
         console.log('\n🧪 测试命令:');
         console.log(`   curl -v https://${config.targetDomain}:${config.httpsPort}/v1/models`);
         console.log(`   curl -v http://localhost:${config.port}/v1/models\n`);
+        console.log('📊 日志格式:');
+        console.log('   每个请求会显示详细的请求/响应信息');
+        console.log('   包括耗时、状态码、错误信息等\n');
       });
     } catch (error) {
       console.error('❌ HTTPS 服务器启动失败:', error.message);
