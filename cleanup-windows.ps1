@@ -61,9 +61,10 @@ if ($hostsContent -match $TARGET_DOMAIN) {
 # 步骤 3: 删除端口转发
 Write-Host ""
 Write-Host "步骤 3/4: 删除端口转发规则"
-$portProxy = netsh interface portproxy show v4tov4 | Select-String "443"
+$portProxy = netsh interface portproxy show v4tov4 | Select-String "127.0.0.1.*443"
 if ($portProxy) {
-    netsh interface portproxy delete v4tov4 listenport=443 listenaddress=0.0.0.0 | Out-Null
+    # 删除规则：使用正确的监听地址
+    netsh interface portproxy delete v4tov4 listenport=443 listenaddress=127.0.0.1 | Out-Null
     Write-Host "✅ 端口转发已清理" -ForegroundColor Green
 } else {
     Write-Host "✅ 端口转发无需清理（跳过）" -ForegroundColor Green

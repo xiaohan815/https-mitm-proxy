@@ -56,11 +56,15 @@ fi
 # 步骤 3: 删除端口转发
 echo ""
 echo "步骤 3/4: 删除端口转发规则"
-if iptables -t nat -L OUTPUT -n | grep -q "443"; then
-    iptables -t nat -D OUTPUT -p tcp --dport 443 -j REDIRECT --to-port $HTTPS_PORT 2>/dev/null || true
+if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp dpt:443"; then
+    # 删除规则：指定完整的规则参数
+    iptables -t nat -D OUTPUT -p tcp -d 127.0.0.1 --dport 443 -j REDIRECT --to-port $HTTPS_PORT 2>/dev/null || true
     
     # 保存规则
-    if command -v iptables-save &> /dev/null; then
+    if command -v netfilter-persistent &> /dev/null; then
+        netfilter-persistent save
+    elif command -v iptables-save &> /dev/null; then
+        mkdir -p /etc/iptables
         iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
     fi
     

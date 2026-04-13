@@ -67,11 +67,14 @@ if ($hostsContent -match $TARGET_DOMAIN) {
 # 步骤 4: 配置端口转发
 Write-Host ""
 Write-Host "步骤 4/4: 配置端口转发"
-$portProxy = netsh interface portproxy show v4tov4 | Select-String "443"
+
+# 检查是否已存在规则（更精确的检查）
+$portProxy = netsh interface portproxy show v4tov4 | Select-String "127.0.0.1.*443"
 if ($portProxy) {
     Write-Host "✅ 端口转发已配置（跳过）" -ForegroundColor Green
 } else {
-    netsh interface portproxy add v4tov4 listenport=443 listenaddress=0.0.0.0 connectport=$HTTPS_PORT connectaddress=127.0.0.1 | Out-Null
+    # 只监听本地回环地址
+    netsh interface portproxy add v4tov4 listenport=443 listenaddress=127.0.0.1 connectport=$HTTPS_PORT connectaddress=127.0.0.1 | Out-Null
     Write-Host "✅ 端口转发已配置" -ForegroundColor Green
 }
 

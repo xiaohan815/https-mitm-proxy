@@ -56,17 +56,26 @@ fi
 # 步骤 4: 配置端口转发
 echo ""
 echo "步骤 4/4: 配置端口转发"
-if iptables -t nat -L OUTPUT -n | grep -q "443"; then
+
+# 检查是否已存在规则
+if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp dpt:443 redir ports $HTTPS_PORT"; then
     echo "✅ 端口转发已配置（跳过）"
 else
-    iptables -t nat -A OUTPUT -p tcp --dport 443 -j REDIRECT --to-port $HTTPS_PORT
+    # 添加规则：只重定向本地回环地址的 443 端口
+    iptables -t nat -A OUTPUT -p tcp -d 127.0.0.1 --dport 443 -j REDIRECT --to-port $HTTPS_PORT
     
     # 保存规则（根据发行版不同）
-    if command -v iptables-save &> /dev/null; then
+    if command -v netfilter-persistent &> /dev/null; then
+        # Debian/Ubuntu
+        netfilter-persistent save
+    elif command -v iptables-save &> /dev/null; then
+        # 通用方法
+        mkdir -p /etc/iptables
         iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
     fi
     
     echo "✅ 端口转发已配置"
+    echo "⚠️  注意: 重启后可能需要重新运行此脚本"
 fi
 
 echo ""
