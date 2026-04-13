@@ -58,7 +58,6 @@ if grep -q "$TARGET_DOMAIN" /etc/hosts 2>/dev/null; then
 else
     echo "正在添加 hosts 记录..."
     echo "127.0.0.1 $TARGET_DOMAIN" | sudo tee -a /etc/hosts > /dev/null
-    echo "::1 $TARGET_DOMAIN" | sudo tee -a /etc/hosts > /dev/null
     echo "✅ hosts 已配置"
 fi
 
@@ -66,12 +65,9 @@ fi
 echo ""
 echo "步骤 4/4: 配置端口转发"
 
-# 创建规则文件（支持 IPv4 和 IPv6）
+# 创建规则文件（仅 IPv4）
 sudo mkdir -p /etc/pf.anchors
-cat << EOF | sudo tee /etc/pf.anchors/mitm-proxy > /dev/null
-rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port $HTTPS_PORT
-rdr pass on lo0 inet6 proto tcp from any to any port 443 -> ::1 port $HTTPS_PORT
-EOF
+echo "rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port $HTTPS_PORT" | sudo tee /etc/pf.anchors/mitm-proxy > /dev/null
 
 # 检查 pf.conf
 if grep -q "rdr-anchor \"mitm-proxy\"" /etc/pf.conf 2>/dev/null; then
