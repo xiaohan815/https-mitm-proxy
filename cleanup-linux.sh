@@ -57,8 +57,8 @@ fi
 echo ""
 echo "步骤 3/4: 删除端口转发规则"
 if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp dpt:443"; then
-    # 删除规则：指定完整的规则参数
-    iptables -t nat -D OUTPUT -p tcp -d 127.0.0.1 --dport 443 -j REDIRECT --to-port $HTTPS_PORT 2>/dev/null || true
+    # 删除规则：使用与添加时相同的参数
+    iptables -t nat -D OUTPUT -p tcp --dport 443 -j REDIRECT --to-port $HTTPS_PORT 2>/dev/null || true
     
     # 保存规则
     if command -v netfilter-persistent &> /dev/null; then
