@@ -37,7 +37,6 @@ export const config = {
   backendUrl: env.BACKEND_URL || 'http://localhost:11434',
   enableHttps: env.ENABLE_HTTPS === 'true',
   certDir: env.CERT_DIR || './certs',
-  autoModifyHosts: env.AUTO_MODIFY_HOSTS === 'true',
   logLevel: env.LOG_LEVEL || 'info',
 };
 
