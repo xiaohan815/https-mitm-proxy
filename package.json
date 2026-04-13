@@ -1,0 +1,27 @@
+{
+  "name": "https-mitm-proxy",
+  "version": "1.0.0",
+  "description": "HTTPS MITM Proxy - 拦截 HTTPS 请求并转发到自定义后端",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "setup": "node src/setup.js",
+    "cleanup": "node src/cleanup.js"
+  },
+  "keywords": [
+    "https",
+    "mitm",
+    "proxy",
+    "ssl",
+    "certificate"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "node-forge": "^1.3.1",
+    "http-proxy": "^1.18.1"
+  }
+}
