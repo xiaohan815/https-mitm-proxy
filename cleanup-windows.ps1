@@ -25,8 +25,7 @@ foreach ($line in $envFile) {
 Write-Host "此脚本将清理以下配置："
 Write-Host "  1. 删除 CA 证书"
 Write-Host "  2. 清理 hosts 文件"
-Write-Host "  3. 删除端口转发规则"
-Write-Host "  4. 删除证书文件"
+Write-Host "  3. 删除证书文件"
 Write-Host ""
 $confirm = Read-Host "是否继续？(y/n)"
 if ($confirm -ne "y" -and $confirm -ne "Y") {
@@ -36,7 +35,7 @@ if ($confirm -ne "y" -and $confirm -ne "Y") {
 
 # 步骤 1: 删除 CA 证书
 Write-Host ""
-Write-Host "步骤 1/4: 删除 CA 证书"
+Write-Host "步骤 1/3: 删除 CA 证书"
 $cert = Get-ChildItem -Path Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*MITM Proxy CA*" }
 if ($cert) {
     Remove-Item -Path "Cert:\LocalMachine\Root\$($cert.Thumbprint)" -Force
@@ -47,7 +46,7 @@ if ($cert) {
 
 # 步骤 2: 清理 hosts
 Write-Host ""
-Write-Host "步骤 2/4: 清理 hosts 文件"
+Write-Host "步骤 2/3: 清理 hosts 文件"
 $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
 $hostsContent = Get-Content $hostsPath -ErrorAction SilentlyContinue
 if ($hostsContent -match $TARGET_DOMAIN) {
@@ -58,21 +57,9 @@ if ($hostsContent -match $TARGET_DOMAIN) {
     Write-Host "✅ hosts 无需清理（跳过）" -ForegroundColor Green
 }
 
-# 步骤 3: 删除端口转发
+# 步骤 3: 删除证书文件
 Write-Host ""
-Write-Host "步骤 3/4: 删除端口转发规则"
-$portProxy = netsh interface portproxy show v4tov4 | Select-String "127.0.0.1.*443"
-if ($portProxy) {
-    # 删除规则：使用正确的监听地址
-    netsh interface portproxy delete v4tov4 listenport=443 listenaddress=127.0.0.1 | Out-Null
-    Write-Host "✅ 端口转发已清理" -ForegroundColor Green
-} else {
-    Write-Host "✅ 端口转发无需清理（跳过）" -ForegroundColor Green
-}
-
-# 步骤 4: 删除证书文件
-Write-Host ""
-Write-Host "步骤 4/4: 删除证书文件"
+Write-Host "步骤 3/3: 删除证书文件"
 $deleteCerts = Read-Host "是否删除证书文件？(y/n)"
 if ($deleteCerts -eq "y" -or $deleteCerts -eq "Y") {
     Remove-Item -Path "certs" -Recurse -Force -ErrorAction SilentlyContinue

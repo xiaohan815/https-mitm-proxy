@@ -90,38 +90,38 @@ TARGET_DOMAIN=api.openai.com
 # 转发目标（你的后端服务）
 BACKEND_URL=http://localhost:11434
 
-# HTTPS 端口（避免需要 root 权限）
-HTTPS_PORT=8443
+# HTTPS 端口（使用标准 443 端口）
+HTTPS_PORT=443
 ```
 
-### 3. 一键配置系统
+### 3. 配置系统（仅需证书和 hosts）
 
 #### macOS
 ```bash
-./setup-macos.sh
+# 生成证书
+npm run setup
+
+# 手动配置（或使用简化版脚本）
+# 1. 信任 CA 证书
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ./certs/ca.crt
+
+# 2. 修改 hosts
+sudo sh -c 'echo "127.0.0.1 api.openai.com" >> /etc/hosts'
 ```
 
-#### Linux
-```bash
-sudo ./setup-linux.sh
-```
+**注意：使用 443 端口不需要配置端口转发！**
 
-#### Windows
-```powershell
-# 以管理员身份运行 PowerShell
-.\setup-windows.ps1
-```
-
-**自动完成：**
-- ✅ 生成 CA 证书和域名证书
-- ✅ 信任 CA 证书到系统
-- ✅ 修改 hosts 文件
-- ✅ 配置端口转发（443 → 8443）
-
-### 4. 启动代理
+### 4. 启动代理（需要 sudo）
 
 ```bash
-npm start
+# 方式 1: 使用启动脚本（推荐）
+sudo ./start.sh
+
+# 方式 2: 直接使用 npm
+sudo npm start
+
+# 方式 3: 使用快捷命令
+npm run start:sudo
 ```
 
 ### 5. 测试
@@ -137,10 +137,9 @@ curl https://api.openai.com/v1/chat/completions \
     "model": "qwen2.5:7b",
     "messages": [{"role": "user", "content": "Hello"}]
   }'
-
-# 或使用自动测试脚本
-./test-connection.sh
 ```
+
+**注意：** 使用 443 端口后，不需要指定端口号，直接使用标准 HTTPS URL 即可。
 
 ---
 
@@ -266,7 +265,7 @@ netsh interface portproxy add v4tov4 listenport=443 listenaddress=0.0.0.0 connec
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `HTTPS_PORT` | HTTPS 代理端口 | 8443 |
+| `HTTPS_PORT` | HTTPS 代理端口 | 443 |
 | `TARGET_DOMAIN` | 要拦截的域名 | api.openai.com |
 | `BACKEND_URL` | 转发目标地址 | http://localhost:11434 |
 | `ENABLE_HTTPS` | 是否启用 HTTPS | true |
@@ -276,13 +275,11 @@ netsh interface portproxy add v4tov4 listenport=443 listenaddress=0.0.0.0 connec
 
 ### 端口说明
 
-- **HTTPS_PORT (8443)**: HTTPS 加密代理端口
-  - 标准 HTTPS 端口是 443，但需要 root/管理员权限
-  - 8443 是常见的备用端口，不需要特权
-  - 通过端口转发，客户端访问 443 会自动转到 8443
-- **PORT (3000)**: HTTP 调试端口（可选）
-  - 仅在设置 `ENABLE_HTTP_DEBUG=true` 时启用
-  - 用于不需要 HTTPS 的测试场景
+- **HTTPS_PORT (443)**: HTTPS 标准端口
+  - 使用标准端口 443，客户端无需指定端口号
+  - **需要 sudo/root 权限启动**（特权端口）
+  - **不需要配置端口转发**
+  - 启动命令：`sudo npm start` 或 `npm run start:sudo`
 
 ---
 
@@ -314,29 +311,40 @@ sudo ./cleanup-linux.sh
 
 ## 故障排查
 
-### 问题 1: Connection refused (443 端口)
+### 问题 1: Permission denied (EACCES) 绑定 443 端口
 
-**原因**: 端口转发未配置或代理未启动
+**原因**: 443 是特权端口，需要 root 权限
 
 **解决**:
 ```bash
-# 1. 确保代理正在运行
-npm start
+# 使用 sudo 启动
+sudo npm start
 
-# 2. 重新配置端口转发
-# macOS
-./setup-macos.sh
-
-# Linux
-sudo ./setup-linux.sh
-
-# Windows
-.\setup-windows.ps1
+# 或使用快捷命令
+npm run start:sudo
 ```
 
 ---
 
-### 问题 2: 证书不受信任
+### 问题 2: Connection refused
+
+**原因**: 代理未启动或后端服务未运行
+
+**解决**:
+```bash
+# 1. 确保代理正在运行（需要 sudo）
+sudo npm start
+
+# 2. 检查后端服务
+curl http://localhost:11434/v1/models
+
+# 如果是 Ollama，启动服务
+ollama serve
+```
+
+---
+
+### 问题 3: 证书不受信任
 
 **原因**: CA 证书未添加到系统信任列表
 
@@ -355,7 +363,7 @@ Import-Certificate -FilePath "certs\ca.crt" -CertStoreLocation Cert:\LocalMachin
 
 ---
 
-### 问题 3: 无法连接到后端
+### 问题 4: 无法连接到后端
 
 **原因**: 后端服务未启动或地址错误
 
@@ -372,7 +380,7 @@ ollama serve
 
 ---
 
-### 问题 4: POST 请求返回 400
+### 问题 5: POST 请求返回 400
 
 **原因**: 请求体未正确转发（已修复）
 
@@ -384,7 +392,7 @@ npm start
 
 ---
 
-### 问题 5: hosts 修改不生效
+### 问题 6: hosts 修改不生效
 
 **原因**: DNS 缓存
 
@@ -403,73 +411,56 @@ ipconfig /flushdns
 
 ---
 
-### 问题 6: 请求未被拦截（后端没有收到请求）
+### 问题 7: 请求未被拦截（后端没有收到请求）
 
 **症状**: 应用（如 Trae IDE）请求失败，但代理日志中没有任何请求记录
 
 **常见原因**:
-1. 端口转发规则未生效
-2. 应用使用 IPv6 连接，但端口转发只配置了 IPv4
+1. 代理未以 sudo 权限启动
+2. hosts 文件配置错误
 3. 应用使用自定义 DNS 或绕过系统代理
 
 **诊断步骤**:
 ```bash
-# 1. 运行自动诊断脚本
-./test-connection.sh
+# 1. 检查代理是否在 443 端口运行
+sudo lsof -i :443
 
-# 2. 检查端口转发规则（应该包含 IPv4 和 IPv6）
-sudo pfctl -a mitm-proxy -s nat
+# 2. 检查 hosts 文件
+cat /etc/hosts | grep api.openai.com
 
-# 应该看到两条规则：
-# rdr pass on lo0 inet proto tcp from any to any port = 443 -> 127.0.0.1 port 8443
-# rdr pass on lo0 inet6 proto tcp from any to any port = 443 -> ::1 port 8443
+# 3. 测试连接
+curl -v https://api.openai.com/v1/models -H "Authorization: Bearer test"
 
-# 3. 测试 IPv4 连接
-curl -4 -v https://api.openai.com/v1/models -H "Authorization: Bearer test"
-
-# 4. 测试 IPv6 连接
-curl -6 -v https://api.openai.com/v1/models -H "Authorization: Bearer test"
-
-# 5. 查看代理日志
+# 4. 查看代理日志
 # 如果日志中没有请求记录，说明请求没有到达代理
 ```
 
 **解决方案**:
 ```bash
-# 重新运行配置脚本（已包含 IPv6 支持）
-./setup-macos.sh
+# 1. 确保使用 sudo 启动
+sudo npm start
 
-# 或手动添加 IPv6 规则
-cat << 'EOF' | sudo tee /etc/pf.anchors/mitm-proxy
-rdr pass on lo0 inet proto tcp from any to any port 443 -> 127.0.0.1 port 8443
-rdr pass on lo0 inet6 proto tcp from any to any port 443 -> ::1 port 8443
-EOF
+# 2. 检查 hosts 配置
+sudo sh -c 'echo "127.0.0.1 api.openai.com" >> /etc/hosts'
 
-# 重新加载 pfctl
-sudo pfctl -f /etc/pf.conf
+# 3. 清除 DNS 缓存
+sudo dscacheutil -flushcache
+sudo killall -HUP mDNSResponder
 ```
-
-**注意**: 如果后端返回 401 错误，这是正常的！说明代理工作正常，只是需要在应用中配置正确的 API Key。
 
 ---
 
-### 问题 6: 端口被占用
+### 问题 8: 端口被占用
 
 **原因**: 其他程序占用了端口
 
 **解决**:
 ```bash
-# 修改 .env 中的端口
-PORT=3002
-HTTPS_PORT=8444
+# 查找占用 443 端口的进程
+sudo lsof -i :443
 
-# 或查找并停止占用端口的进程
-# macOS/Linux
-lsof -i :3001
-lsof -i :8443
-
-# Windows
-netstat -ano | findstr :3001
+# 停止占用端口的进程
+sudo kill -9 <PID>
 ```
 
 ---
@@ -497,16 +488,12 @@ ls /usr/local/share/ca-certificates/ | grep mitm
 Get-ChildItem -Path Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*MITM Proxy CA*" }
 ```
 
-### 检查端口转发
+### 检查端口监听
 ```bash
-# macOS
-sudo pfctl -s nat | grep 443
+# 检查 443 端口是否被监听
+sudo lsof -i :443
 
-# Linux
-sudo iptables -t nat -L OUTPUT -n | grep 443
-
-# Windows
-netsh interface portproxy show v4tov4
+# 应该看到 node 进程
 ```
 
 ---

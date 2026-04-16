@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "start:sudo": "sudo node src/server.js",
     "dev": "node --watch src/server.js",
     "setup": "node src/setup.js",
     "cleanup": "node src/cleanup.js"

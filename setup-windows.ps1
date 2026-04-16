@@ -7,7 +7,8 @@ Write-Host "此脚本将完成以下配置："
 Write-Host "  1. 生成 CA 和域名证书"
 Write-Host "  2. 信任 CA 证书"
 Write-Host "  3. 修改 hosts 文件"
-Write-Host "  4. 配置端口转发 (443 → 8443)"
+Write-Host ""
+Write-Host "⚠️  注意: 使用 443 端口需要管理员权限启动代理" -ForegroundColor Yellow
 Write-Host ""
 $confirm = Read-Host "是否继续？(y/n)"
 if ($confirm -ne "y" -and $confirm -ne "Y") {
@@ -31,20 +32,16 @@ if (-not $envFile) {
 }
 
 $TARGET_DOMAIN = "api.openai.com"
-$HTTPS_PORT = "8443"
 
 foreach ($line in $envFile) {
     if ($line -match "^TARGET_DOMAIN=(.+)$") {
         $TARGET_DOMAIN = $matches[1]
     }
-    if ($line -match "^HTTPS_PORT=(.+)$") {
-        $HTTPS_PORT = $matches[1]
-    }
 }
 
 # 步骤 1: 生成证书
 Write-Host ""
-Write-Host "步骤 1/4: 生成证书"
+Write-Host "步骤 1/3: 生成证书"
 if (-not (Test-Path "certs")) {
     npm run setup | Out-Null
     Write-Host "✅ 证书已生成" -ForegroundColor Green
@@ -54,7 +51,7 @@ if (-not (Test-Path "certs")) {
 
 # 步骤 2: 信任 CA 证书
 Write-Host ""
-Write-Host "步骤 2/4: 信任 CA 证书"
+Write-Host "步骤 2/3: 信任 CA 证书"
 $cert = Get-ChildItem -Path Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*MITM Proxy CA*" }
 if ($cert) {
     Write-Host "✅ CA 证书已信任（跳过）" -ForegroundColor Green
@@ -72,7 +69,7 @@ if ($cert) {
 
 # 步骤 3: 修改 hosts
 Write-Host ""
-Write-Host "步骤 3/4: 修改 hosts 文件"
+Write-Host "步骤 3/3: 修改 hosts 文件"
 $hostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
 $hostsContent = Get-Content $hostsPath -ErrorAction SilentlyContinue
 if ($hostsContent -match $TARGET_DOMAIN) {
@@ -83,27 +80,12 @@ if ($hostsContent -match $TARGET_DOMAIN) {
     Write-Host "✅ hosts 已配置" -ForegroundColor Green
 }
 
-# 步骤 4: 配置端口转发
-Write-Host ""
-Write-Host "步骤 4/4: 配置端口转发"
-
-# 检查是否已存在规则
-$portProxy = netsh interface portproxy show v4tov4 | Select-String "127.0.0.1.*443"
-if ($portProxy) {
-    Write-Host "✅ 端口转发已配置（跳过）" -ForegroundColor Green
-} else {
-    Write-Host "正在配置端口转发..."
-    # 监听本地回环地址的 443 端口
-    netsh interface portproxy add v4tov4 listenport=443 listenaddress=127.0.0.1 connectport=$HTTPS_PORT connectaddress=127.0.0.1 | Out-Null
-    Write-Host "✅ 端口转发已配置" -ForegroundColor Green
-}
-
 # 完成
 Write-Host ""
 Write-Host "🎉 配置完成！" -ForegroundColor Green
 Write-Host ""
 Write-Host "📝 下一步:"
-Write-Host "  1. 启动代理: npm start"
+Write-Host "  1. 以管理员身份启动代理: npm start"
 Write-Host "  2. 测试: curl https://$TARGET_DOMAIN/v1/models"
 Write-Host ""
 Write-Host "🧹 如需清理配置，以管理员身份运行: .\cleanup-windows.ps1"

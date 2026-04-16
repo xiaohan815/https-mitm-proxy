@@ -6,7 +6,8 @@ echo "此脚本将完成以下配置："
 echo "  1. 生成 CA 和域名证书"
 echo "  2. 信任 CA 证书"
 echo "  3. 修改 hosts 文件"
-echo "  4. 配置端口转发 (443 → 8443)"
+echo ""
+echo "⚠️  注意: 使用 443 端口需要 sudo 权限启动代理"
 echo ""
 read -p "是否继续？(y/n) " -n 1 -r
 echo ""
@@ -28,11 +29,10 @@ source .env 2>/dev/null || {
 }
 
 TARGET_DOMAIN=${TARGET_DOMAIN:-api.openai.com}
-HTTPS_PORT=${HTTPS_PORT:-8443}
 
 # 步骤 1: 生成证书
 echo ""
-echo "步骤 1/4: 生成证书"
+echo "步骤 1/3: 生成证书"
 if [ ! -d "certs" ]; then
     sudo -u $SUDO_USER npm run setup > /dev/null 2>&1
     echo "✅ 证书已生成"
@@ -42,7 +42,7 @@ fi
 
 # 步骤 2: 信任 CA 证书
 echo ""
-echo "步骤 2/4: 信任 CA 证书"
+echo "步骤 2/3: 信任 CA 证书"
 if [ -f /usr/local/share/ca-certificates/mitm-proxy-ca.crt ]; then
     echo "✅ CA 证书已信任（跳过）"
 else
@@ -59,7 +59,7 @@ fi
 
 # 步骤 3: 修改 hosts
 echo ""
-echo "步骤 3/4: 修改 hosts 文件"
+echo "步骤 3/3: 修改 hosts 文件"
 if grep -q "$TARGET_DOMAIN" /etc/hosts 2>/dev/null; then
     echo "✅ hosts 已配置（跳过）"
 else
@@ -68,37 +68,12 @@ else
     echo "✅ hosts 已配置"
 fi
 
-# 步骤 4: 配置端口转发
-echo ""
-echo "步骤 4/4: 配置端口转发"
-
-# 检查是否已存在规则
-if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp dpt:443 redir ports $HTTPS_PORT"; then
-    echo "✅ 端口转发已配置（跳过）"
-else
-    # 添加规则：重定向所有到 443 端口的流量（类似 macOS 的 from any to any）
-    echo "正在配置端口转发..."
-    iptables -t nat -A OUTPUT -p tcp --dport 443 -j REDIRECT --to-port $HTTPS_PORT
-    
-    # 保存规则（根据发行版不同）
-    if command -v netfilter-persistent &> /dev/null; then
-        # Debian/Ubuntu
-        netfilter-persistent save
-    elif command -v iptables-save &> /dev/null; then
-        # 通用方法
-        mkdir -p /etc/iptables
-        iptables-save > /etc/iptables/rules.v4 2>/dev/null || true
-    fi
-    
-    echo "✅ 端口转发已配置"
-fi
-
 # 完成
 echo ""
 echo "🎉 配置完成！"
 echo ""
 echo "📝 下一步:"
-echo "  1. 启动代理: npm start"
+echo "  1. 启动代理: sudo npm start"
 echo "  2. 测试: curl https://$TARGET_DOMAIN/v1/models"
 echo ""
 echo "🧹 如需清理配置，运行: sudo ./cleanup-linux.sh"
