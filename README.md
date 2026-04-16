@@ -137,6 +137,9 @@ curl https://api.openai.com/v1/chat/completions \
     "model": "qwen2.5:7b",
     "messages": [{"role": "user", "content": "Hello"}]
   }'
+
+# 或使用自动测试脚本
+./test-connection.sh
 ```
 
 ---
@@ -263,21 +266,23 @@ netsh interface portproxy add v4tov4 listenport=443 listenaddress=0.0.0.0 connec
 
 | 配置项 | 说明 | 默认值 |
 |--------|------|--------|
-| `PORT` | HTTP 代理端口 | 3001 |
 | `HTTPS_PORT` | HTTPS 代理端口 | 8443 |
 | `TARGET_DOMAIN` | 要拦截的域名 | api.openai.com |
 | `BACKEND_URL` | 转发目标地址 | http://localhost:11434 |
 | `ENABLE_HTTPS` | 是否启用 HTTPS | true |
 | `CERT_DIR` | 证书存储目录 | ./certs |
 | `LOG_LEVEL` | 日志级别 | info |
+| `ENABLE_HTTP_DEBUG` | 启用 HTTP 调试服务器（可选） | false |
 
 ### 端口说明
 
-- **PORT (3001)**: HTTP 明文代理，用于测试
-- **HTTPS_PORT (8443)**: HTTPS 加密代理，避免需要 root 权限
+- **HTTPS_PORT (8443)**: HTTPS 加密代理端口
   - 标准 HTTPS 端口是 443，但需要 root/管理员权限
   - 8443 是常见的备用端口，不需要特权
   - 通过端口转发，客户端访问 443 会自动转到 8443
+- **PORT (3000)**: HTTP 调试端口（可选）
+  - 仅在设置 `ENABLE_HTTP_DEBUG=true` 时启用
+  - 用于不需要 HTTPS 的测试场景
 
 ---
 

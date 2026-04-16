@@ -135,36 +135,40 @@ function startServer() {
   console.log('📋 配置信息:');
   console.log(`   目标域名: ${config.targetDomain}`);
   console.log(`   后端地址: ${config.backendUrl}`);
-  console.log(`   HTTP 端口: ${config.port}`);
+  console.log(`   HTTPS 端口: ${config.httpsPort}`);
   console.log(`   日志级别: ${config.logLevel}`);
   
-  // HTTP 服务器
-  http.createServer(app).listen(config.port, () => {
-    console.log(`\n✅ HTTP 服务器运行在: http://localhost:${config.port}`);
-  });
-  
-  // HTTPS 服务器
+  // HTTPS 服务器（主要功能）
   if (config.enableHttps) {
     try {
       const credentials = initCertificates();
-      console.log(`   HTTPS 端口: ${config.httpsPort}`);
       
       https.createServer(credentials, app).listen(config.httpsPort, () => {
-        console.log(`✅ HTTPS 服务器运行在: https://localhost:${config.httpsPort}`);
+        console.log(`\n✅ HTTPS 服务器运行在: https://localhost:${config.httpsPort}`);
         console.log('\n📝 使用说明:');
         console.log('   1. 将 CA 证书添加到系统信任列表');
         console.log(`   2. 修改 hosts 文件: 127.0.0.1 ${config.targetDomain}`);
-        console.log(`   3. (可选) 端口转发: sudo pfctl 或 iptables 将 443 转发到 ${config.httpsPort}`);
+        console.log(`   3. 端口转发: sudo pfctl 或 iptables 将 443 转发到 ${config.httpsPort}`);
         console.log('\n🧪 测试命令:');
         console.log(`   curl -v https://${config.targetDomain}:${config.httpsPort}/v1/models`);
-        console.log(`   curl -v http://localhost:${config.port}/v1/models\n`);
         console.log('📊 日志格式:');
         console.log('   每个请求会显示详细的请求/响应信息');
         console.log('   包括耗时、状态码、错误信息等\n');
       });
     } catch (error) {
       console.error('❌ HTTPS 服务器启动失败:', error.message);
+      process.exit(1);
     }
+  } else {
+    console.error('❌ HTTPS 未启用，请在 .env 中设置 ENABLE_HTTPS=true');
+    process.exit(1);
+  }
+  
+  // HTTP 服务器（可选，仅用于调试）
+  if (process.env.ENABLE_HTTP_DEBUG === 'true') {
+    http.createServer(app).listen(config.port, () => {
+      console.log(`🔧 HTTP 调试服务器运行在: http://localhost:${config.port}`);
+    });
   }
 }
 
